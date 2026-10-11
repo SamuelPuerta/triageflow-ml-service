@@ -1,0 +1,342 @@
+{
+  "info": {
+    "name": "TriageFlow ML-Engine",
+    "description": "Pruebas del Laboratorio 4. Variable baseUrl: http://localhost:8000",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "pm.test('Modelo cargado', () => pm.expect(j.model_loaded).to.eql(true));",
+              "pm.test('Estado healthy', () => pm.expect(j.status).to.eql('healthy'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. BI inicial (contenedor recién iniciado)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bi/er-status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bi",
+            "er-status"
+          ]
+        },
+        "description": "Con el buffer vacío devuelve ceros. Si ya enviaste check-ins, verás los acumulados."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('Estructura de KPIs', () => { const j = pm.response.json(); pm.expect(j).to.have.property('hospital_kpis'); pm.expect(j).to.have.property('level_breakdown'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Check-in crítico (esperado: nivel 1)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/events/patient-checkin",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "events",
+            "patient-checkin"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patient_id\": \"PAT-9821\",\n  \"age\": 68,\n  \"heart_rate\": 135,\n  \"systolic_bp\": 175,\n  \"diastolic_bp\": 105,\n  \"spo2\": 88,\n  \"temperature\": 38.8,\n  \"pain_level\": 9\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "pm.test('Nivel de triaje 1', () => pm.expect(j.triage_level).to.eql(1));",
+              "pm.test('Espera estimada 0 min', () => pm.expect(j.estimated_wait_minutes).to.eql(0));",
+              "pm.test('Estado TRIAGED_BY_ML', () => pm.expect(j.status).to.eql('TRIAGED_BY_ML'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Check-in urgente (esperado: nivel 2)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/events/patient-checkin",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "events",
+            "patient-checkin"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patient_id\": \"PAT-4410\",\n  \"age\": 55,\n  \"heart_rate\": 108,\n  \"systolic_bp\": 148,\n  \"diastolic_bp\": 94,\n  \"spo2\": 94,\n  \"temperature\": 38.0,\n  \"pain_level\": 6\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "description": "Caso de frontera: el modelo suele dar menor confianza en el nivel 2."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "pm.test('Nivel de triaje 2', () => pm.expect(j.triage_level).to.eql(2));",
+              "pm.test('Espera estimada 15 min', () => pm.expect(j.estimated_wait_minutes).to.eql(15));",
+              "pm.test('Estado TRIAGED_BY_ML', () => pm.expect(j.status).to.eql('TRIAGED_BY_ML'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Check-in estable (esperado: nivel 3)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/events/patient-checkin",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "events",
+            "patient-checkin"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patient_id\": \"PAT-0001\",\n  \"age\": 30,\n  \"heart_rate\": 72,\n  \"systolic_bp\": 118,\n  \"diastolic_bp\": 76,\n  \"spo2\": 98,\n  \"temperature\": 36.6,\n  \"pain_level\": 1\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "pm.test('Nivel de triaje 3', () => pm.expect(j.triage_level).to.eql(3));",
+              "pm.test('Espera estimada 45 min', () => pm.expect(j.estimated_wait_minutes).to.eql(45));",
+              "pm.test('Estado TRIAGED_BY_ML', () => pm.expect(j.status).to.eql('TRIAGED_BY_ML'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. BI después de los check-ins",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/bi/er-status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "bi",
+            "er-status"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "pm.test('Hay ingresos registrados', () => pm.expect(j.hospital_kpis.total_admissions).to.be.at.least(3));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Error 422: SpO2 fuera de rango",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/events/patient-checkin",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "events",
+            "patient-checkin"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patient_id\": \"PAT-9821\",\n  \"age\": 68,\n  \"heart_rate\": 135,\n  \"systolic_bp\": 175,\n  \"diastolic_bp\": 105,\n  \"spo2\": 150,\n  \"temperature\": 38.8,\n  \"pain_level\": 9\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 422', () => pm.response.to.have.status(422));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Error 422: faltan campos",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/events/patient-checkin",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "events",
+            "patient-checkin"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patient_id\": \"PAT-0000\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 422', () => pm.response.to.have.status(422));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
