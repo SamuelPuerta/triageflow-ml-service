@@ -8,10 +8,10 @@ RUN pip install --prefix=/install -r requirements.txt
 # ---------- Etapa 2: runtime (imagen final mínima) ----------
 FROM python:3.14-slim AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PORT=8000
+  PYTHONUNBUFFERED=1 \
+  PORT=8000
 
-# Usuario sin privilegios (buena práctica de seguridad)
+# Usuario sin privilegios
 RUN useradd --create-home --uid 1001 appuser
 WORKDIR /srv
 
